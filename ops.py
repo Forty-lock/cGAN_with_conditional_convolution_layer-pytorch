@@ -83,10 +83,9 @@ class ConditionalBatchNorm2d(nn.Module):
     def forward(self, input, c):
 
         output = self.b1(input)
-        size = output.size()
 
-        weight = self.weights(c).unsqueeze(-1).unsqueeze(-1).expand(size)
-        bias = self.biases(c).unsqueeze(-1).unsqueeze(-1).expand(size)
+        weight = self.weights(c).unsqueeze(-1).unsqueeze(-1)
+        bias = self.biases(c).unsqueeze(-1).unsqueeze(-1)
         return weight * output + bias
 
 class cConv(nn.Module):

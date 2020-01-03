@@ -13,7 +13,7 @@ import cv2
 
 Height = 128
 Width = 128
-batch_size = 16
+batch_size = 32
 n_noise = 128
 
 GD_ratio = 5
