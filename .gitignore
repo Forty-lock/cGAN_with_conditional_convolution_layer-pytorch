@@ -124,3 +124,9 @@ dmypy.json
 .pyre/
 
 List/
+
+mid_test/
+
+model/
+
+tiny/
