@@ -33,7 +33,7 @@ Max_iter = 1000000
 
 dPath = './List'
 
-custom = CustomDataset('./tiny/')
+custom = CustomDataset('D:/dataset/tiny/')
 
 data_loader = DataLoader(custom, batch_size=batch_size * GD_ratio, shuffle=True)
 
@@ -56,8 +56,8 @@ if restore:
 
 start_time = time.time()
 for e in range(10000):
-    for iter_count, (img_real, class_img) in enumerate(data_loader):
-        iter_count += restore_point
+    for step, (img_real, class_img) in enumerate(data_loader):
+        iter_count = restore_point
 
         for gd in range(GD_ratio):
             optim_disc.zero_grad()
@@ -83,6 +83,9 @@ for e in range(10000):
                 G_loss = -torch.mean(dis_fake)
                 G_loss.backward()
                 optim_gen.step()
+                iter_count += 1
+            else:
+                G_loss = 0
 
         if iter_count % 100 == 0:
             consume_time = time.time() - start_time
