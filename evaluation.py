@@ -46,6 +46,6 @@ def evaluate(gen, n_noise, num_class, name_c, eval_data, time=3, save_path='./mi
         fid_score[tt] = fid.calculate_frechet_distance(mu_fake, sigma_fake, mu_real, sigma_real)
         # Calculate Inception scores
 
-        is_score[tt], _ = inception_score.inception_score(fake_images, inception_model, 20, resize=True, splits=10)
+        is_score[tt], _ = inception_score.inception_score(fake_images, inception_model, 20, splits=10)
     gen.train()
     return fid_score, is_score
