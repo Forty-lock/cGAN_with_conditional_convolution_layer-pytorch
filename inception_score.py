@@ -3,7 +3,18 @@ import torch
 from torch.nn import functional as F
 
 import numpy as np
-from scipy.stats import entropy
+
+def cal_kl(p, q):
+    """Kullback-Leibler divergence D(P || Q) for discrete distributions
+    Parameters
+    ----------
+    p, q : array-like, dtype=float, shape=n
+    Discrete probability distributions.
+    """
+    p = np.asarray(p, dtype=np.float)
+    q = np.asarray(q, dtype=np.float)
+
+    return np.sum(np.where(p != 0, p * np.log(p / q), 0))
 
 def inception_score(imgs, model, batch_size=32, splits=1):
     """Computes the inception score of the generated images imgs
@@ -27,9 +38,9 @@ def inception_score(imgs, model, batch_size=32, splits=1):
 
         batch = torch.from_numpy(imgs[start:end]).float().cuda()
         with torch.no_grad():
-            _, pred = F.softmax(model(batch))
+            _, pred = model(batch)
 
-        preds[start:end] = pred.cpu().numpy()
+        preds[start:end] = F.softmax(pred, dim=1).cpu().numpy()
 
     # Now compute the mean kl-div
     split_scores = []
@@ -40,7 +51,7 @@ def inception_score(imgs, model, batch_size=32, splits=1):
         scores = []
         for i in range(part.shape[0]):
             pyx = part[i, :]
-            scores.append(entropy(pyx, py))
+            scores.append(cal_kl(pyx, py))
         split_scores.append(np.exp(np.mean(scores)))
 
     return np.mean(split_scores), np.std(split_scores)

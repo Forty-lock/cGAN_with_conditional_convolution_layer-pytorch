@@ -22,7 +22,7 @@ model_path = './model/' + description
 
 restore = False
 restore_point = 260000
-Checkpoint = model_path + '/cVG iter ' + str(restore_point) + '/'
+Checkpoint = model_path + '/cVG iter ' + str(restore_point) + '/Train_' + str(restore_point) + '.pth'
 
 if not restore:
     restore_point = 0
@@ -40,8 +40,7 @@ def main():
     name_c = custom.label_name
     num_class = custom.num_label
 
-    data_loader = iter(DataLoader(custom, batch_size=batch_size * GD_ratio, shuffle=True, drop_last=True))
-    eval_data = iter(DataLoader(custom, batch_size=1))
+    data_loader = DataLoader(custom, batch_size=batch_size * GD_ratio, shuffle=True, drop_last=True)
 
     generator = mm.Generator(n_noise, num_class).cuda()
     discriminator = mm.Discriminator(num_class).cuda()
@@ -59,74 +58,79 @@ def main():
         print('Weight Restoring Finish!')
 
     print('Training start')
+    is_training = True
+    iter_count = restore_point
     start_time = time.time()
-    for iter_count in range(restore_point, Max_iter):
-        e = iter_count // (custom.__len__()//batch_size) //GD_ratio
-        img_real, class_img = next(data_loader)
-        D_loss = 0
-        G_loss = 0
+    for e in range(100000):
+        if not is_training:
+            break
+        for step, (img_real, class_img) in enumerate(data_loader):
 
-        for gd in range(GD_ratio):
-            with torch.no_grad():
-                img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
+            D_loss = 0
+            G_loss = 0
 
-            dis_fake = discriminator(img_gen, class_img[gd::GD_ratio])
-            dis_real = discriminator(img_real[gd::GD_ratio], class_img[gd::GD_ratio])
+            for gd in range(GD_ratio):
+                with torch.no_grad():
+                    img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
 
-            D_loss = torch.mean(torch.relu(1. - dis_real)) + torch.mean(torch.relu(1. + dis_fake))
-            optim_disc.zero_grad()
-            D_loss.backward()
-            optim_disc.step()
-
-            if gd == 0:
-                img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
                 dis_fake = discriminator(img_gen, class_img[gd::GD_ratio])
-                dis_real = None
+                dis_real = discriminator(img_real[gd::GD_ratio], class_img[gd::GD_ratio])
 
-                G_loss = -torch.mean(dis_fake)
-                optim_gen.zero_grad()
-                G_loss.backward()
-                optim_gen.step()
+                D_loss = torch.mean(torch.relu(1. - dis_real)) + torch.mean(torch.relu(1. + dis_fake))
+                optim_disc.zero_grad()
+                D_loss.backward()
+                optim_disc.step()
 
-        if iter_count % 100 == 0:
-            consume_time = time.time() - start_time
-            print('%d     Epoch : %d\t\tLoss_D = %.4f\t\tLoss_G = %.4f\t\ttime = %.4f' %
-                  (iter_count, e, D_loss.item(), G_loss.item(), consume_time))
-            start_time = time.time()
+                if gd == 0:
+                    img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
+                    dis_fake = discriminator(img_gen, class_img[gd::GD_ratio])
+                    dis_real = None
 
-        if iter_count % saving_iter == 0 and iter_count != restore_point:
+                    G_loss = -torch.mean(dis_fake)
+                    optim_gen.zero_grad()
+                    G_loss.backward()
+                    optim_gen.step()
+                    iter_count += 1
 
-            print('SAVING MODEL')
-            Temp = model_path + '/cVG iter %s/' % iter_count
+            if iter_count % 100 == 0:
+                consume_time = time.time() - start_time
+                print('%d\t\tEpoch : %d\t\tLoss_D = %.4f\t\tLoss_G = %.4f\t\ttime = %.4f' %
+                      (iter_count, e, D_loss.item(), G_loss.item(), consume_time))
+                start_time = time.time()
 
-            if not os.path.exists(Temp):
-                os.makedirs(Temp)
+            if iter_count % saving_iter == 0:
 
-            SaveName = Temp + 'Train_%s' % iter_count
-            torch.save({
-                'gen': generator.state_dict(),
-                'dis': discriminator.state_dict(),
-                'opt_gen': optim_gen.state_dict(),
-                'opt_dis': optim_disc.state_dict(),
-            }, SaveName)
-            print('SAVING MODEL Finish')
+                print('SAVING MODEL')
+                Temp = model_path + '/cVG iter %s/' % iter_count
 
-            print('Evaluation start')
+                if not os.path.exists(Temp):
+                    os.makedirs(Temp)
 
-            fid_score, is_score = evaluate(generator, n_noise, num_class,
-                                           name_c, eval_data,
-                                           time=3, save_path=save_path+'/img/')
+                SaveName = Temp + 'Train_%s.pth' % iter_count
+                torch.save({
+                    'gen': generator.state_dict(),
+                    'dis': discriminator.state_dict(),
+                    'opt_gen': optim_gen.state_dict(),
+                    'opt_dis': optim_disc.state_dict(),
+                }, SaveName)
+                print('SAVING MODEL Finish')
 
-            with open(save_path + 'log_FID.txt', 'a+') as f:
-                data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
-                f.write(data)
-            with open(save_path + 'log_FID.txt', 'a+') as f:
-                data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
-                f.write(data)
+                print('Evaluation start')
 
-            print('Evaluation Finish')
+                fid_score, is_score = evaluate(generator, n_noise, num_class,
+                                               name_c, custom, time=3,
+                                               save_path=save_path+'/img/')
+
+                with open(save_path + '/log_FID.txt', 'a+') as f:
+                    data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
+                    iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
+                    f.write(data)
+                with open(save_path + '/log_FID.txt', 'a+') as f:
+                    data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
+                    iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
+                    f.write(data)
+
+                print('Evaluation Finish')
 
 if __name__ == '__main__':
     main()
