@@ -12,8 +12,11 @@ class Res_Block_up(nn.Module):
         self.conv1 = cConv2d(in_channels, out_channels, 3, num_classes, padding=1)
         self.conv2 = cConv2d(out_channels, out_channels, 3, num_classes, padding=1)
 
-        self.cbn1 = ConditionalBatchNorm2d(num_classes, in_channels)
-        self.cbn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+        # self.cbn1 = ConditionalBatchNorm2d(num_classes, in_channels)
+        # self.cbn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels)
 
         self.dim_bal = dim_bal
 
@@ -41,11 +44,11 @@ class Res_Block_up(nn.Module):
             return self._upsample(x)
 
     def model(self, x, c):
-        h = self.cbn1(x, c)
+        h = self.bn1(x)
         h = F.relu(h)
         h = self._upsample(h)
         h = self.conv1(h, c)
-        h = self.cbn2(h, c)
+        h = self.bn2(h)
         h = F.relu(h)
         h = self.conv2(h, c)
         return h

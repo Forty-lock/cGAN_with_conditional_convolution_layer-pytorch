@@ -1,7 +1,9 @@
 from torch.utils.data import Dataset
 import torchvision.transforms as trans
 import pickle
+import numpy as np
 import torch
+import cv2
 
 class CustomDataset(Dataset):
     def __init__(self, dataset_root):
@@ -9,25 +11,37 @@ class CustomDataset(Dataset):
             self.data_list = pickle.load(pickle_file)
         with open(dataset_root + 'tiny_ImageNet128_label.pkl', 'rb') as pickle_file:
             self.label_list = pickle.load(pickle_file)
-        self.img_transform1 = trans.Compose([trans.ToTensor(),
+        self.label_name, self.num_label = read_label_list(dataset_root + 'labels_tiny.txt')
+        self.img_transform = trans.Compose([trans.ToTensor(),
                                             trans.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                             ])
-        self.img_transform2 = trans.Compose([trans.ToTensor(),
-                                             trans.Lambda(lambda x: x.repeat(3, 1, 1)),
-                                             trans.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                             ])
 
     def __getitem__(self, idx):
-        img = self.data_list[idx]
+        Loadimage = self.data_list[idx]
         gt = torch.Tensor([int(self.label_list[idx]) - 1])
 
-        if img.ndim == 2:
-            img = self.img_transform2(img)
-        else:
-            img = self.img_transform1(img)
+        if Loadimage.ndim == 2:
+            Loadimage = np.expand_dims(Loadimage, 2)
+            Loadimage = np.tile(Loadimage, (1, 1, 3))
+        Loadimage = cv2.cvtColor(Loadimage, cv2.COLOR_BGR2RGB)
 
-        return img.cuda(), gt[0].cuda().long()
+        img = self.img_transform(Loadimage)
+
+        return img.cuda().detach(), gt[0].cuda().long().detach()
 
     def __len__(self):
         return len(self.data_list)
 
+def read_label_list(image_list_file):
+    f = open(image_list_file, 'r')
+    filenames1 = []
+    Total_Image_Num = 0
+
+    for line in f:
+        filename1 = line[:-1]
+
+        filenames1.append(filename1)
+
+        Total_Image_Num = Total_Image_Num + 1
+
+    return filenames1, Total_Image_Num
