@@ -115,7 +115,7 @@ def main():
 
             fid_score, is_score = evaluate(generator, n_noise, num_class,
                                            name_c, eval_data,
-                                           time=3, save_path=save_path+'img/')
+                                           time=3, save_path=save_path+'/img/')
 
             with open(save_path + 'log_FID.txt', 'a+') as f:
                 data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
