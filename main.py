@@ -94,7 +94,7 @@ def main():
 
             if iter_count % 100 == 0:
                 consume_time = time.time() - start_time
-                print('%d\t\tEpoch : %d\t\tLoss_D = %.4f\t\tLoss_G = %.4f\t\ttime = %.4f' %
+                print('%d\t\tEpoch : %d\t\tLoss_D = %.3f\t\tLoss_G = %.3f\t\ttime = %.4f' %
                       (iter_count, e, D_loss.item(), G_loss.item(), consume_time))
                 start_time = time.time()
 
@@ -125,12 +125,16 @@ def main():
                     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
                     iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
                     f.write(data)
-                with open(save_path + '/log_FID.txt', 'a+') as f:
+                with open(save_path + '/log_IS.txt', 'a+') as f:
                     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
                     iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
                     f.write(data)
 
                 print('Evaluation Finish')
+
+            if iter_count == Max_iter:
+                is_training = False
+                break
 
 if __name__ == '__main__':
     main()

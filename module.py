@@ -21,7 +21,7 @@ class Res_Block_up(nn.Module):
         self.dim_bal = dim_bal
 
         if dim_bal:
-            self.bal_conv = cConv2d(in_channels, out_channels, 1, num_classes)
+            self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
 
         self._initialize()
 
@@ -37,7 +37,7 @@ class Res_Block_up(nn.Module):
 
     def shortcut(self, x, c):
         if self.dim_bal:
-            h = self.bal_conv(x, c)
+            h = self.bal_conv(x)
             h = self._upsample(h)
             return h
         else:

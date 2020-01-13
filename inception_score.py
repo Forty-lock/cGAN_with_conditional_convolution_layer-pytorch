@@ -54,5 +54,5 @@ def inception_score(imgs, model, batch_size=32, splits=1):
             scores.append(cal_kl(pyx, py))
         split_scores.append(np.exp(np.mean(scores)))
 
-    return np.mean(split_scores), np.std(split_scores)
+    return np.mean(split_scores)
 

@@ -23,7 +23,6 @@ class CustomDataset(Dataset):
         if Loadimage.ndim == 2:
             Loadimage = np.expand_dims(Loadimage, 2)
             Loadimage = np.tile(Loadimage, (1, 1, 3))
-        Loadimage = cv2.cvtColor(Loadimage, cv2.COLOR_BGR2RGB)
 
         img = self.img_transform(Loadimage)
 

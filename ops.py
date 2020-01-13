@@ -49,7 +49,7 @@ class _cConvNd(nn.Module):
         self.groups = groups
         self.padding_mode = padding_mode
         self.weight = Parameter(torch.Tensor(out_channels, in_channels // groups, *kernel_size))
-        self.bias = Parameter(torch.Tensor(out_channels))
+        self.bias = Parameter(torch.Tensor(1, out_channels, 1, 1))
 
         self.scales = nn.Embedding(num_classes, out_channels)
         self.shifts = nn.Embedding(num_classes, in_channels)
@@ -103,15 +103,14 @@ class cConv2d(_cConvNd):
         b_size, c_size, height, width = input.shape
 
         scale = self.scales(c).view(b_size, self.out_channels, 1, 1, 1)
-        shift = self.shifts(c).view(b_size, 1, self.in_channels, 1, 1)
+        shift = self.shifts(c).view(b_size, 1, self.in_channels, 1, 1) / self.kernel_size[0] / self.kernel_size[1]
 
         weight = (weight * scale + shift)
 
         return F.conv2d(input.view(1, b_size*c_size, height, width),
-                        weight.view(-1, self.in_channels, self.kernel_size[0], self.kernel_size[0]),
-                        self.bias.repeat(b_size),
-                        self.stride,
-                        self.padding, self.dilation, b_size).view(-1, self.out_channels, height, width)
+                        weight.view(-1, self.in_channels, self.kernel_size[0], self.kernel_size[1]),
+                        None, self.stride, self.padding,
+                        self.dilation, b_size).view(-1, self.out_channels, height, width) + self.bias
 
     def forward(self, x, c):
         return self.conv2d_forward(x, self.weight, c)

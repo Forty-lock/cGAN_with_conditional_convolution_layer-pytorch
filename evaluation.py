@@ -10,7 +10,7 @@ from inception_model import inception_v3
 def evaluate(gen, n_noise, num_class, name_c, custom, time=3, save_path='./mid_test/img'):
     with torch.no_grad():
         gen.eval()
-        inception_model = inception_v3(pretrained=True).cuda()
+        inception_model = inception_v3(pretrained=True, transform_input=True).cuda()
 
         fid_score = []
         is_score = []
@@ -32,12 +32,13 @@ def evaluate(gen, n_noise, num_class, name_c, custom, time=3, save_path='./mid_t
 
                 # Save generated images.
 
-                isave = i % num_class
-                save_name = save_path + '/img_%04d_%s.png' % (isave, class_name)
+                if tt == 0:
+                    isave = i % num_class
+                    save_name = save_path + '/img_%04d_%s.png' % (isave, class_name)
 
-                if not os.path.isdir(save_path):
-                    os.makedirs(save_path)
-                torchvision.utils.save_image(fake[0], save_name, normalize=True)
+                    if not os.path.isdir(save_path):
+                        os.makedirs(save_path)
+                    torchvision.utils.save_image(fake[0], save_name, normalize=True)
             # Calculate FID scores
 
             fake_images = np.concatenate(fake_list)
