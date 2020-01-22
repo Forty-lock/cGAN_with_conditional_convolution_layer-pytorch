@@ -7,18 +7,22 @@ import torch
 from torch.utils.data import DataLoader
 from inception_model import inception_v3
 
-def evaluate(gen, n_noise, num_class, name_c, custom, time=3, save_path='./mid_test/img'):
+
+def evaluate(gen, n_noise, num_class, name_c, custom, time=3, num_img=20000, batch=1, save_path='./mid_test/img',
+             save_img=True):
     with torch.no_grad():
         gen.eval()
         inception_model = inception_v3(pretrained=True, transform_input=True).cuda()
 
+        npc = num_img // num_class // batch
+
         fid_score = []
         is_score = []
         for tt in range(time):
-            eval_data = iter(DataLoader(custom, batch_size=1))
+            eval_data = iter(DataLoader(custom, batch_size=batch))
             fake_list, real_list = [], []
-            for i in range(20000):
-                class_idx = i//num_class
+            for i in range(num_img // batch):
+                class_idx = i // npc
                 class_name = name_c[class_idx].split()[2]
 
                 z = torch.randn(1, n_noise).cuda()
@@ -31,14 +35,14 @@ def evaluate(gen, n_noise, num_class, name_c, custom, time=3, save_path='./mid_t
                 real_list.append((next(eval_data)[0].cpu().numpy() + 1.0) / 2.0)
 
                 # Save generated images.
+                if save_img:
+                    if tt == 0:
+                        isave = i % num_class
+                        save_name = save_path + '/img_%04d_%s.png' % (isave, class_name)
 
-                if tt == 0:
-                    isave = i % num_class
-                    save_name = save_path + '/img_%04d_%s.png' % (isave, class_name)
-
-                    if not os.path.isdir(save_path):
-                        os.makedirs(save_path)
-                    torchvision.utils.save_image(fake[0], save_name, normalize=True)
+                        if not os.path.isdir(save_path):
+                            os.makedirs(save_path)
+                        torchvision.utils.save_image(fake[0], save_name, normalize=True)
             # Calculate FID scores
 
             fake_images = np.concatenate(fake_list)

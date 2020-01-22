@@ -22,14 +22,13 @@ class Res_Block_up(nn.Module):
 
         if dim_bal:
             self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
+            init.xavier_uniform_(self.bal_conv.weight.data, 1.)
 
         self._initialize()
 
     def _initialize(self):
         init.xavier_uniform_(self.conv1.weight.data, math.sqrt(2))
         init.xavier_uniform_(self.conv2.weight.data, math.sqrt(2))
-        if self.dim_bal:
-            init.xavier_uniform_(self.bal_conv.weight.data)
 
     def _upsample(self, x):
         h, w = x.size()[2:]
