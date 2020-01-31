@@ -13,22 +13,22 @@ Width = 128
 batch_size = 32
 n_noise = 128
 
-GD_ratio = 1
+GD_ratio = 5
 
-description = 'cConv'
+description = 'cConv+cBN_full'
 
 save_path = './mid_test/' + description
 model_path = './model/' + description
 
 restore = False
-restore_point = 260000
+restore_point = 10000
 Checkpoint = model_path + '/cVG iter ' + str(restore_point) + '/Train_' + str(restore_point) + '.pth'
 
 if not restore:
     restore_point = 0
 
 saving_iter = 10000
-Max_iter = 1000000
+Max_iter = 400000
 
 def sample_from_gen(label, gen):
     z = torch.randn(batch_size, n_noise).cuda().detach()
@@ -36,7 +36,7 @@ def sample_from_gen(label, gen):
     return fake
 
 def main():
-    custom = CustomDataset('D:/dataset/tiny/')
+    custom = CustomDataset('D:/dataset/imagenet_2012_128')
     name_c = custom.label_name
     num_class = custom.num_label
 
@@ -45,8 +45,8 @@ def main():
     generator = mm.Generator(n_noise, num_class).cuda()
     discriminator = mm.Discriminator(num_class).cuda()
 
-    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0004, betas=(0.0, 0.9))
-    optim_gen = optim.Adam(generator.parameters(), lr=0.0001, betas=(0.0, 0.9))
+    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.0, 0.9))
+    optim_gen = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.0, 0.9))
 
     if restore:
         print('Weight Restoring.....')
@@ -55,6 +55,8 @@ def main():
         discriminator.load_state_dict(checkpoint['dis'])
         optim_gen.load_state_dict(checkpoint['opt_gen'])
         optim_disc.load_state_dict(checkpoint['opt_dis'])
+        del checkpoint
+        torch.cuda.empty_cache()
         print('Weight Restoring Finish!')
 
     print('Training start')
@@ -71,10 +73,10 @@ def main():
 
             for gd in range(GD_ratio):
                 with torch.no_grad():
-                    img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
+                    img_gen = sample_from_gen(class_img[gd::GD_ratio].cuda(), generator)
 
-                dis_fake = discriminator(img_gen, class_img[gd::GD_ratio])
-                dis_real = discriminator(img_real[gd::GD_ratio], class_img[gd::GD_ratio])
+                dis_fake = discriminator(img_gen, class_img[gd::GD_ratio].cuda())
+                dis_real = discriminator(img_real[gd::GD_ratio].cuda(), class_img[gd::GD_ratio].cuda())
 
                 D_loss = torch.mean(torch.relu(1. - dis_real)) + torch.mean(torch.relu(1. + dis_fake))
                 optim_disc.zero_grad()
@@ -82,8 +84,8 @@ def main():
                 optim_disc.step()
 
                 if gd == 0:
-                    img_gen = sample_from_gen(class_img[gd::GD_ratio], generator)
-                    dis_fake = discriminator(img_gen, class_img[gd::GD_ratio])
+                    img_gen = sample_from_gen(class_img[gd::GD_ratio].cuda(), generator)
+                    dis_fake = discriminator(img_gen, class_img[gd::GD_ratio].cuda())
                     dis_real = None
 
                     G_loss = -torch.mean(dis_fake)
@@ -117,9 +119,8 @@ def main():
 
                 print('Evaluation start')
 
-                fid_score, is_score = evaluate(generator, n_noise, num_class,
-                                               name_c, custom, time=3,
-                                               save_path=save_path+'/img/')
+                fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
+                                               num_img=50000, time=3, save_path=save_path + '/img/')
 
                 with open(save_path + '/log_FID.txt', 'a+') as f:
                     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
@@ -129,7 +130,7 @@ def main():
                     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
                     iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
                     f.write(data)
-
+                torch.cuda.empty_cache()
                 print('Evaluation Finish')
 
             if iter_count == Max_iter:

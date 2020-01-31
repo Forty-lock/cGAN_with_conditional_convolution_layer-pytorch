@@ -1,24 +1,27 @@
 from torch.utils.data import Dataset
 import torchvision.transforms as trans
-import pickle
 import numpy as np
 import torch
+import glob
 import cv2
+from PIL import Image
 
 class CustomDataset(Dataset):
     def __init__(self, dataset_root):
-        with open(dataset_root + 'tiny_ImageNet128.pkl', 'rb') as pickle_file:
-            self.data_list = pickle.load(pickle_file)
-        with open(dataset_root + 'tiny_ImageNet128_label.pkl', 'rb') as pickle_file:
-            self.label_list = pickle.load(pickle_file)
-        self.label_name, self.num_label = read_label_list(dataset_root + 'labels_tiny.txt')
+        self.data_list = glob.glob(dataset_root + '/*/*.jpeg')
+        self.label_name, self.num_label = read_label_list(dataset_root + '/labels_image_net.txt')
         self.img_transform = trans.Compose([trans.ToTensor(),
                                             trans.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                                             ])
 
     def __getitem__(self, idx):
-        Loadimage = self.data_list[idx]
-        gt = torch.Tensor([int(self.label_list[idx]) - 1])
+        # Loadimage = cv2.imread(self.data_list[idx])
+        # Loadimage = cv2.cvtColor(Loadimage, cv2.COLOR_BGR2RGB)
+        Loadimage = Image.open(self.data_list[idx])
+        Loadimage = np.asarray(Loadimage)
+
+        idx_class = self.data_list[idx].split('\\')[-2]
+        label = torch.Tensor([int(idx_class) - 1])
 
         if Loadimage.ndim == 2:
             Loadimage = np.expand_dims(Loadimage, 2)
@@ -26,7 +29,7 @@ class CustomDataset(Dataset):
 
         img = self.img_transform(Loadimage)
 
-        return img.cuda().detach(), gt[0].cuda().long().detach()
+        return img, label[0].long()
 
     def __len__(self):
         return len(self.data_list)

@@ -5,18 +5,9 @@ from torch.nn import functional as F
 import numpy as np
 
 def cal_kl(p, q):
-    """Kullback-Leibler divergence D(P || Q) for discrete distributions
-    Parameters
-    ----------
-    p, q : array-like, dtype=float, shape=n
-    Discrete probability distributions.
-    """
-    p = np.asarray(p, dtype=np.float)
-    q = np.asarray(q, dtype=np.float)
+    return np.sum(p * np.log(p / q), axis=1)
 
-    return np.sum(np.where(p != 0, p * np.log(p / q), 0))
-
-def inception_score(imgs, model, batch_size=32, splits=1):
+def inception_score(imgs, model, batch_size=32, splits=10):
     """Computes the inception score of the generated images imgs
 
     imgs -- Numpy array of dimension (n_images, 3, hi, wi). The values
@@ -47,11 +38,8 @@ def inception_score(imgs, model, batch_size=32, splits=1):
 
     for k in range(splits):
         part = preds[k::splits]
-        py = np.mean(part, axis=0)
-        scores = []
-        for i in range(part.shape[0]):
-            pyx = part[i, :]
-            scores.append(cal_kl(pyx, py))
+        py = np.mean(part, axis=0, keepdims=True)
+        scores = cal_kl(part, py)
         split_scores.append(np.exp(np.mean(scores)))
 
     return np.mean(split_scores)

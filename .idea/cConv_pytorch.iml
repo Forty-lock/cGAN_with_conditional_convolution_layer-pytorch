@@ -5,6 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/List" />
       <excludeFolder url="file://$MODULE_DIR$/mid_test" />
       <excludeFolder url="file://$MODULE_DIR$/model" />
+      <excludeFolder url="file://$MODULE_DIR$/results" />
       <excludeFolder url="file://$MODULE_DIR$/tiny" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.7.5 (C:\ProgramData\Anaconda3\envs\pytorch\python.exe)" jdkType="Python SDK" />

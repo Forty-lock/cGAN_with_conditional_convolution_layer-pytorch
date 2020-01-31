@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 import torch.nn.functional as F
-from torch.nn import utils
 
 class ConditionalBatchNorm2d(nn.Module):
 
