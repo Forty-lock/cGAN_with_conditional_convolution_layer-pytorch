@@ -9,11 +9,11 @@ class Res_Block_up(nn.Module):
     def __init__(self, in_channels, out_channels, num_classes, dim_bal=True):
         super(Res_Block_up, self).__init__()
 
-        self.conv1 = cConv2d(in_channels, out_channels, 3, num_classes, padding=1)
-        self.conv2 = cConv2d(out_channels, out_channels, 3, num_classes, padding=1)
+        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1)
+        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
 
-        self.cbn1 = ConditionalBatchNorm2d(num_classes, in_channels)
-        self.cbn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+        self.bn1 = ConditionalBatchNorm2d(num_classes, in_channels)
+        self.bn2 = ConditionalBatchNorm2d(num_classes, out_channels)
 
         # self.bn1 = nn.BatchNorm2d(in_channels)
         # self.bn2 = nn.BatchNorm2d(out_channels)
@@ -21,7 +21,7 @@ class Res_Block_up(nn.Module):
         self.dim_bal = dim_bal
 
         if dim_bal:
-            self.bal_conv = cConv2d(in_channels, out_channels, 1, num_classes)
+            self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
 
         self._initialize()
 
@@ -35,20 +35,20 @@ class Res_Block_up(nn.Module):
 
     def shortcut(self, x, c):
         if self.dim_bal:
-            h = self.bal_conv(x, c)
+            h = self.bal_conv(x)
             h = self._upsample(h)
             return h
         else:
             return self._upsample(x)
 
     def model(self, x, c):
-        h = self.cbn1(x, c)
+        h = self.bn1(x, c)
         h = F.relu(h)
         h = self._upsample(h)
-        h = self.conv1(h, c)
-        h = self.cbn2(h, c)
+        h = self.conv1(h)
+        h = self.bn2(h, c)
         h = F.relu(h)
-        h = self.conv2(h, c)
+        h = self.conv2(h)
         return h
 
     def forward(self, x, c):

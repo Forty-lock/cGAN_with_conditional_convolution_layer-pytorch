@@ -1,37 +1,42 @@
-"""Derived from https://github.com/sbarratt/inception-score-pytorch/blob/master/inception_score.py"""  # NOQA
 import torch
 from torch.nn import functional as F
 
+from torchvision.models.inception import inception_v3
+
 import numpy as np
+
 
 def cal_kl(p, q):
     return np.sum(p * np.log(p / q), axis=1)
 
-def inception_score(imgs, model, batch_size=32, splits=10):
+def inception_score(imgs, batch_size=32, resize=True, splits=10):
     """Computes the inception score of the generated images imgs
 
-    imgs -- Numpy array of dimension (n_images, 3, hi, wi). The values
-                     must lie between 0 and 1.
+    imgs -- Torch dataset of (3xHxW) numpy images normalized in the range [-1, 1]
     cuda -- whether or not to run on GPU
     batch_size -- batch size for feeding into Inception v3
     splits -- number of splits
     """
-    model.eval()
+    N = imgs.shape[0]
+
+    # Load inception model
+    inception_model = inception_v3(pretrained=True, transform_input=False).cuda()
+    inception_model.eval()
+    def get_pred(x):
+        if resize:
+            x = F.interpolate(x, size=(299, 299), mode='bilinear', align_corners=True)
+        x = inception_model(x)
+        return F.softmax(x, dim=1).data.cpu().numpy()
 
     # Get predictions
-    d0 = imgs.shape[0]
-    preds = np.zeros((d0, 1000))
-
-    n_batches = d0 // batch_size
-    for i in range(n_batches):
+    preds = np.zeros((N, 1000))
+    for i in range(N//batch_size):
         start = i * batch_size
         end = start + batch_size
 
         batch = torch.from_numpy(imgs[start:end]).float().cuda()
-        with torch.no_grad():
-            _, pred = model(batch)
 
-        preds[start:end] = F.softmax(pred, dim=1).cpu().numpy()
+        preds[start:end] = get_pred(batch)
 
     # Now compute the mean kl-div
     split_scores = []
@@ -42,5 +47,5 @@ def inception_score(imgs, model, batch_size=32, splits=10):
         scores = cal_kl(part, py)
         split_scores.append(np.exp(np.mean(scores)))
 
-    return np.mean(split_scores)
+    return np.mean(split_scores), np.std(split_scores)
 

@@ -21,7 +21,7 @@ save_path = './mid_test/' + description
 model_path = './model/' + description
 
 restore = False
-restore_point = 10000
+restore_point = 20000
 Checkpoint = model_path + '/cVG iter ' + str(restore_point) + '/Train_' + str(restore_point) + '.pth'
 
 if not restore:
@@ -29,11 +29,6 @@ if not restore:
 
 saving_iter = 10000
 Max_iter = 400000
-
-def sample_from_gen(label, gen):
-    z = torch.randn(batch_size, n_noise).cuda().detach()
-    fake = gen(z, label)
-    return fake
 
 def main():
     custom = CustomDataset('D:/dataset/imagenet_2012_128')
@@ -56,7 +51,6 @@ def main():
         optim_gen.load_state_dict(checkpoint['opt_gen'])
         optim_disc.load_state_dict(checkpoint['opt_dis'])
         del checkpoint
-        torch.cuda.empty_cache()
         print('Weight Restoring Finish!')
 
     print('Training start')
@@ -73,7 +67,7 @@ def main():
 
             for gd in range(GD_ratio):
                 with torch.no_grad():
-                    img_gen = sample_from_gen(class_img[gd::GD_ratio].cuda(), generator)
+                    img_gen = generator(torch.randn(batch_size, n_noise).cuda(), class_img[gd::GD_ratio].cuda())
 
                 dis_fake = discriminator(img_gen, class_img[gd::GD_ratio].cuda())
                 dis_real = discriminator(img_real[gd::GD_ratio].cuda(), class_img[gd::GD_ratio].cuda())
@@ -84,7 +78,7 @@ def main():
                 optim_disc.step()
 
                 if gd == 0:
-                    img_gen = sample_from_gen(class_img[gd::GD_ratio].cuda(), generator)
+                    img_gen = generator(torch.randn(batch_size, n_noise).cuda(), class_img[gd::GD_ratio].cuda())
                     dis_fake = discriminator(img_gen, class_img[gd::GD_ratio].cuda())
                     dis_real = None
 
@@ -117,21 +111,20 @@ def main():
                 }, SaveName)
                 print('SAVING MODEL Finish')
 
-                print('Evaluation start')
-
-                fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
-                                               num_img=50000, time=3, save_path=save_path + '/img/')
-
-                with open(save_path + '/log_FID.txt', 'a+') as f:
-                    data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                    iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
-                    f.write(data)
-                with open(save_path + '/log_IS.txt', 'a+') as f:
-                    data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                    iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
-                    f.write(data)
-                torch.cuda.empty_cache()
-                print('Evaluation Finish')
+                # print('Evaluation start')
+                #
+                # fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
+                #                                num_img=50000, time=3, save_path=save_path + '/img/')
+                #
+                # with open(save_path + '/log_FID.txt', 'a+') as f:
+                #     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
+                #     iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
+                #     f.write(data)
+                # with open(save_path + '/log_IS.txt', 'a+') as f:
+                #     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
+                #     iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
+                #     f.write(data)
+                # print('Evaluation Finish')
 
             if iter_count == Max_iter:
                 is_training = False
