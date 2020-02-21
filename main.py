@@ -1,4 +1,5 @@
 import torch
+import torchvision
 import torch.optim as optim
 import time
 import module as mm
@@ -13,9 +14,9 @@ Width = 128
 batch_size = 32
 n_noise = 128
 
-GD_ratio = 5
+GD_ratio = 1
 
-description = 'cConv+cBN_full'
+description = 'cConv+SN'
 
 save_path = './mid_test/' + description
 model_path = './model/' + description
@@ -28,10 +29,32 @@ if not restore:
     restore_point = 0
 
 saving_iter = 10000
-Max_iter = 400000
+Max_iter = 1000000
+
+def save_images(gen, n_noise, num_class, name_c, npc=10, save_path='./mid_test/img/'):
+    with torch.no_grad():
+        gen.eval()
+
+        for i in range(npc*num_class):
+            class_idx = i//npc
+            class_name = name_c[class_idx].split()[2]
+
+            label = torch.Tensor([class_idx]).cuda().long()
+
+            fake = gen(torch.randn(1, n_noise).cuda(), label)
+
+            # Save generated images.
+            isave = i % npc
+            save_name = save_path + 'img_%s_%04d.png' % (class_name, isave)
+
+            if not os.path.isdir(save_path):
+                os.makedirs(save_path)
+            torchvision.utils.save_image(fake[0], save_name, normalize=True)
+
+        gen.train()
 
 def main():
-    custom = CustomDataset('D:/dataset/imagenet_2012_128')
+    custom = CustomDataset('D:/dataset/tiny/')
     name_c = custom.label_name
     num_class = custom.num_label
 
@@ -40,8 +63,8 @@ def main():
     generator = mm.Generator(n_noise, num_class).cuda()
     discriminator = mm.Discriminator(num_class).cuda()
 
-    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.0, 0.9))
-    optim_gen = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.0, 0.9))
+    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0004, betas=(0.0, 0.9))
+    optim_gen = optim.Adam(generator.parameters(), lr=0.0001, betas=(0.0, 0.9))
 
     if restore:
         print('Weight Restoring.....')
@@ -111,10 +134,12 @@ def main():
                 }, SaveName)
                 print('SAVING MODEL Finish')
 
+                save_images(generator, n_noise, num_class, name_c, save_path=save_path + '/img/')
+
                 # print('Evaluation start')
                 #
                 # fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
-                #                                num_img=50000, time=3, save_path=save_path + '/img/')
+                #                                num_img=50000, save_path=save_path + '/img/')
                 #
                 # with open(save_path + '/log_FID.txt', 'a+') as f:
                 #     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
