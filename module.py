@@ -9,19 +9,19 @@ class Res_Block_up(nn.Module):
     def __init__(self, in_channels, out_channels, num_classes, dim_bal=True):
         super(Res_Block_up, self).__init__()
 
-        self.conv1 = utils.spectral_norm(cConv2d(in_channels, out_channels, 3, num_classes, padding=1))
-        self.conv2 = utils.spectral_norm(cConv2d(out_channels, out_channels, 3, num_classes, padding=1))
+        self.conv1 = utils.spectral_norm(nn.Conv2d(in_channels, out_channels, 3, padding=1))
+        self.conv2 = utils.spectral_norm(nn.Conv2d(out_channels, out_channels, 3, padding=1))
 
-        # self.cbn1 = ConditionalBatchNorm2d(num_classes, in_channels)
-        # self.cbn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+        self.cbn1 = ConditionalBatchNorm2d(num_classes, in_channels)
+        self.cbn2 = ConditionalBatchNorm2d(num_classes, out_channels)
 
-        self.bn1 = nn.BatchNorm2d(in_channels)
-        self.bn2 = nn.BatchNorm2d(out_channels)
+        # self.bn1 = nn.BatchNorm2d(in_channels)
+        # self.bn2 = nn.BatchNorm2d(out_channels)
 
         self.dim_bal = dim_bal
 
         if dim_bal:
-            self.bal_conv = utils.spectral_norm(nn.Conv2d(in_channels, out_channels, 1))
+            self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
             init.xavier_uniform_(self.bal_conv.weight.data, 1.)
 
         self._initialize()
@@ -43,13 +43,13 @@ class Res_Block_up(nn.Module):
             return self._upsample(x)
 
     def model(self, x, c):
-        h = self.bn1(x)
+        h = self.cbn1(x, c)
         h = F.relu(h, True)
         h = self._upsample(h)
-        h = self.conv1(h, c)
-        h = self.bn2(h)
+        h = self.conv1(h)
+        h = self.cbn2(h, c)
         h = F.relu(h, True)
-        h = self.conv2(h, c)
+        h = self.conv2(h)
         return h
 
     def forward(self, x, c):
@@ -135,7 +135,7 @@ class Generator(nn.Module):
 
         self.model = nn.Sequential(
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.ReLU(True),
             self.final,
             nn.Tanh()
         )
@@ -169,20 +169,24 @@ class Discriminator(nn.Module):
 
         self._initialize()
 
+        self.model = nn.Sequential(
+            self.block1,
+            self.block2,
+            self.block3,
+            self.block4,
+            self.block5,
+            self.block6,
+            nn.ReLU(True)
+        )
+
     def _initialize(self):
         init.xavier_uniform_(self.fc.weight.data)
         init.xavier_uniform_(self.l_y.weight.data)
 
-    def net(self, x):
-        h = self.block1(x)
-        h = self.block2(h)
-        h = self.block3(h)
-        h = self.block4(h)
-        h = self.block5(h)
-        h = self.block6(h)
-        h = F.relu(h)
-        return torch.sum(h, dim=(2, 3))
+    def projection(self, h, c):
+        return self.fc(h) + self.l_y(h).gather(1, c.unsqueeze(-1))
 
     def forward(self, x, c):
-        h = self.net(x)
-        return self.fc(h) + self.l_y(h).gather(1, c.unsqueeze(-1))
+        h = self.model(x)
+        h = torch.sum(h, dim=(2, 3))
+        return self.projection(h, c)

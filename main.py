@@ -16,7 +16,7 @@ n_noise = 128
 
 GD_ratio = 1
 
-description = 'cConv+SN'
+description = 'cBN+SN'
 
 save_path = './mid_test/' + description
 model_path = './model/' + description
