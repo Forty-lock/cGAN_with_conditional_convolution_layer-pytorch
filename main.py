@@ -14,7 +14,7 @@ Width = 128
 batch_size = 32
 n_noise = 128
 
-GD_ratio = 1
+GD_ratio = 5
 
 description = 'cConv'
 
@@ -63,8 +63,8 @@ def main():
     generator = mm.Generator(n_noise, num_class).cuda()
     discriminator = mm.Discriminator(num_class).cuda()
 
-    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0004, betas=(0.0, 0.9))
-    optim_gen = optim.Adam(generator.parameters(), lr=0.0001, betas=(0.0, 0.9))
+    optim_disc = optim.Adam(discriminator.parameters(), lr=0.0002, betas=(0.0, 0.9))
+    optim_gen = optim.Adam(generator.parameters(), lr=0.0002, betas=(0.0, 0.9))
 
     if restore:
         print('Weight Restoring.....')
