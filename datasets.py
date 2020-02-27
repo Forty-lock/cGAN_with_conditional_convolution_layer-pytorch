@@ -3,7 +3,6 @@ import torchvision.transforms as trans
 import pickle
 import numpy as np
 import torch
-import cv2
 
 class CustomDataset(Dataset):
     def __init__(self, dataset_root):

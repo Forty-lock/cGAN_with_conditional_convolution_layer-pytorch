@@ -16,7 +16,7 @@ n_noise = 128
 
 GD_ratio = 1
 
-description = 'cBN+SN'
+description = 'cConv'
 
 save_path = './mid_test/' + description
 model_path = './model/' + description
@@ -29,7 +29,7 @@ if not restore:
     restore_point = 0
 
 saving_iter = 10000
-Max_iter = 1000000
+Max_iter = 500000
 
 def save_images(gen, n_noise, num_class, name_c, npc=10, save_path='./mid_test/img/'):
     with torch.no_grad():
