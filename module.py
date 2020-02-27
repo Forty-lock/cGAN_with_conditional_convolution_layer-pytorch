@@ -9,25 +9,28 @@ class Res_Block_up(nn.Module):
     def __init__(self, in_channels, out_channels, num_classes, dim_bal=True):
         super(Res_Block_up, self).__init__()
 
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
+        # self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding=1)
+        # self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding=1)
 
-        self.bn1 = ConditionalBatchNorm2d(num_classes, in_channels)
-        self.bn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+        self.conv1 = cConv2d(in_channels, out_channels, 3, num_classes, padding=1)
+        self.conv2 = cConv2d(out_channels, out_channels, 3, num_classes, padding=1)
 
-        # self.bn1 = nn.BatchNorm2d(in_channels)
-        # self.bn2 = nn.BatchNorm2d(out_channels)
+        # self.bn1 = ConditionalBatchNorm2d(num_classes, in_channels)
+        # self.bn2 = ConditionalBatchNorm2d(num_classes, out_channels)
+
+        self.bn1 = nn.BatchNorm2d(in_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels)
 
         self.dim_bal = dim_bal
 
         if dim_bal:
-            self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
+            self.bal_conv = cConv2d(in_channels, out_channels, 1, num_classes)
 
         self._initialize()
 
     def _initialize(self):
-        init.xavier_uniform_(self.conv1.weight.data, math.sqrt(2))
-        init.xavier_uniform_(self.conv2.weight.data, math.sqrt(2))
+        init.xavier_uniform_(self.conv1.weight.data, 1.)
+        init.xavier_uniform_(self.conv2.weight.data, 1.)
 
     def _upsample(self, x):
         h, w = x.size()[2:]
@@ -35,20 +38,20 @@ class Res_Block_up(nn.Module):
 
     def shortcut(self, x, c):
         if self.dim_bal:
-            h = self.bal_conv(x)
+            h = self.bal_conv(x, c)
             h = self._upsample(h)
             return h
         else:
             return self._upsample(x)
 
     def model(self, x, c):
-        h = self.bn1(x, c)
-        h = F.relu(h)
+        h = self.bn1(x)
+        h = F.relu(h, True)
         h = self._upsample(h)
-        h = self.conv1(h)
-        h = self.bn2(h, c)
-        h = F.relu(h)
-        h = self.conv2(h)
+        h = self.conv1(h, c)
+        h = self.bn2(h)
+        h = F.relu(h, True)
+        h = self.conv2(h, c)
         return h
 
     def forward(self, x, c):
@@ -64,34 +67,30 @@ class Res_Block_Down(nn.Module):
         nn.init.xavier_uniform_(self.conv1.weight.data, 1.)
         nn.init.xavier_uniform_(self.conv2.weight.data, 1.)
 
-        if down:
-            self.model = nn.Sequential(
-                nn.ReLU(),
-                self.conv1,
-                nn.ReLU(),
-                self.conv2,
-                nn.AvgPool2d(2)
-                )
-        else:
-            self.model = nn.Sequential(
-                nn.ReLU(),
-                self.conv1,
-                nn.ReLU(),
-                self.conv2
-                )
         if dim_bal:
-            self.bypass_conv = utils.spectral_norm(nn.Conv2d(in_channels, out_channels, 1))
-            nn.init.xavier_uniform_(self.bypass_conv.weight.data, np.sqrt(2))
+            self.bal_conv = utils.spectral_norm(nn.Conv2d(in_channels, out_channels, 1))
+            nn.init.xavier_uniform_(self.bal_conv.weight.data, 1.)
 
-            self.bypass = nn.Sequential(
-                nn.AvgPool2d(2),
-                self.bypass_conv
-            )
-        else:
-            self.bypass = nn.Sequential()
+        self.down = down
+        self.dim_bal = dim_bal
+
+    def shortcut(self, x):
+        if self.dim_bal:
+            x = F.avg_pool2d(x, 2)
+            x = self.bal_conv(x)
+        return x
+
+    def model(self, x):
+        h = F.relu(x)
+        h = self.conv1(h)
+        h = F.relu(h, True)
+        h = self.conv2(h)
+        if self.down:
+            h = F.avg_pool2d(h, 2)
+        return h
 
     def forward(self, x):
-        return self.model(x) + self.bypass(x)
+        return self.model(x) + self.shortcut(x)
 
 class FirstBlock(nn.Module):
 
@@ -106,8 +105,8 @@ class FirstBlock(nn.Module):
         self._initialize()
 
     def _initialize(self):
-        init.xavier_uniform_(self.c1.weight.data, math.sqrt(2))
-        init.xavier_uniform_(self.c2.weight.data, math.sqrt(2))
+        init.xavier_uniform_(self.c1.weight.data, 1.)
+        init.xavier_uniform_(self.c2.weight.data, 1.)
         init.xavier_uniform_(self.c_sc.weight.data)
 
     def forward(self, x):
@@ -117,7 +116,7 @@ class FirstBlock(nn.Module):
         return self.c_sc(F.avg_pool2d(x, 2))
 
     def residual(self, x):
-        h = self.activation(self.c1(x))
+        h = self.activation(self.c1(x), True)
         return F.avg_pool2d(self.c2(h), 2)
 
 class Generator(nn.Module):
@@ -125,8 +124,8 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
         self.z_dim = z_dim
 
-        self.dense = nn.Linear(self.z_dim, 4 * 4 * 1024)
-        self.final = nn.Conv2d(64, 3, 3, stride=1, padding=1)
+        self.dense = utils.spectral_norm(nn.Linear(self.z_dim, 4 * 4 * 1024))
+        self.final = utils.spectral_norm(nn.Conv2d(64, 3, 3, stride=1, padding=1))
         nn.init.xavier_uniform_(self.dense.weight.data, 1.)
         nn.init.xavier_uniform_(self.final.weight.data, 1.)
 

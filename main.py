@@ -15,7 +15,7 @@ n_noise = 128
 
 GD_ratio = 5
 
-description = 'cConv+cBN_full'
+description = 'cConv'
 
 save_path = './mid_test/' + description
 model_path = './model/' + description
@@ -28,10 +28,10 @@ if not restore:
     restore_point = 0
 
 saving_iter = 10000
-Max_iter = 400000
+Max_iter = 500000
 
 def main():
-    custom = CustomDataset('D:/dataset/imagenet_2012_128')
+    custom = CustomDataset('D:/dataset/tiny/')
     name_c = custom.label_name
     num_class = custom.num_label
 

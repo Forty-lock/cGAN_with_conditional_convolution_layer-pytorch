@@ -13,7 +13,7 @@ Height = 128
 Width = 128
 n_noise = 128
 
-description = 'cBN'
+description = 'cConv'
 
 save_path = './results/' + description
 model_path = './model/' + description
