@@ -24,7 +24,9 @@ class Res_Block_up(nn.Module):
         self.dim_bal = dim_bal
 
         if dim_bal:
+            # self.bal_conv = nn.Conv2d(in_channels, out_channels, 1)
             self.bal_conv = cConv2d(in_channels, out_channels, 1, num_classes)
+            init.xavier_uniform_(self.bal_conv.weight.data, 1.)
 
         self._initialize()
 
