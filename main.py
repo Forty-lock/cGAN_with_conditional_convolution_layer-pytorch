@@ -29,7 +29,7 @@ if not restore:
     restore_point = 0
 
 saving_iter = 10000
-Max_iter = 500000
+Max_iter = 1000000
 
 def save_images(gen, n_noise, num_class, name_c, npc=10, save_path='./mid_test/img/'):
     with torch.no_grad():
@@ -86,7 +86,6 @@ def main():
         for step, (img_real, class_img) in enumerate(data_loader):
 
             D_loss = 0
-            G_loss = 0
 
             for gd in range(GD_ratio):
                 with torch.no_grad():
@@ -100,16 +99,14 @@ def main():
                 D_loss.backward()
                 optim_disc.step()
 
-                if gd == 0:
-                    img_gen = generator(torch.randn(batch_size, n_noise).cuda(), class_img[gd::GD_ratio].cuda())
-                    dis_fake = discriminator(img_gen, class_img[gd::GD_ratio].cuda())
-                    dis_real = None
+            img_gen = generator(torch.randn(batch_size, n_noise).cuda(), class_img[0::GD_ratio].cuda())
+            dis_fake = discriminator(img_gen, class_img[0::GD_ratio].cuda())
 
-                    G_loss = -torch.mean(dis_fake)
-                    optim_gen.zero_grad()
-                    G_loss.backward()
-                    optim_gen.step()
-                    iter_count += 1
+            G_loss = -torch.mean(dis_fake)
+            optim_gen.zero_grad()
+            G_loss.backward()
+            optim_gen.step()
+            iter_count += 1
 
             if iter_count % 100 == 0:
                 consume_time = time.time() - start_time
