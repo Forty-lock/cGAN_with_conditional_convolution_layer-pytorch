@@ -104,10 +104,8 @@ class cConv2d(_cConvNd):
         scale = self.scales(c).view(b_size, self.out_channels, 1, 1, 1)
         shift = self.shifts(c).view(b_size, 1, self.in_channels, 1, 1) / self.kernel_size[0] / self.kernel_size[1]
 
-        weight = (weight * scale + shift)
-
         return F.conv2d(input.view(1, b_size*c_size, height, width),
-                        weight.view(-1, self.in_channels, self.kernel_size[0], self.kernel_size[1]),
+                        (weight * scale + shift).view(-1, self.in_channels, self.kernel_size[0], self.kernel_size[1]),
                         None, self.stride, self.padding,
                         self.dilation, b_size).view(-1, self.out_channels, height, width) + self.bias
 
