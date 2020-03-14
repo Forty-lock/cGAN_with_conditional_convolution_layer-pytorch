@@ -13,7 +13,7 @@ Height = 128
 Width = 128
 n_noise = 128
 
-description = 'cConv'
+description = 'cConv+cBN'
 
 save_path = './results/' + description
 model_path = './model/' + description
@@ -69,8 +69,7 @@ def main():
 
         print(iter_count)
         print('Weight Restoring.....')
-        checkpoint = torch.load(Checkpoint)
-        generator.load_state_dict(checkpoint['gen'])
+        generator.load_state_dict(torch.load(Checkpoint)['gen'])
         print('Weight Restoring Finish!')
 
         print('Evaluation start')
@@ -86,6 +85,8 @@ def main():
         # Calculate Inception scores
         print('Calculate Inception scores')
         is_score = inception_score.inception_score(fake_images, batch_size=10, splits=10)
+
+        del fake_images
 
         if not os.path.isdir(save_path):
             os.makedirs(save_path)

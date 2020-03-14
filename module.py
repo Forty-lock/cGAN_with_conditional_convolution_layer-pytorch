@@ -121,13 +121,36 @@ class FirstBlock(nn.Module):
         h = self.activation(self.c1(x), True)
         return F.avg_pool2d(self.c2(h), 2)
 
+class SelfAttention(nn.Module):
+    def __init__(self, in_channel):
+        super().__init__()
+
+        self.query = utils.spectral_norm(nn.Conv1d(in_channel, in_channel // 8, 1))
+        self.key = utils.spectral_norm(nn.Conv1d(in_channel, in_channel // 8, 1))
+        self.value = utils.spectral_norm(nn.Conv1d(in_channel, in_channel, 1))
+
+        self.gamma = nn.Parameter(torch.zeros(1), requires_grad=True)
+
+    def attention(self, x):
+        shape = x.shape
+        flatten = x.view(shape[0], shape[1], -1)
+        query_key = torch.bmm(self.query(flatten).permute(0, 2, 1), self.key(flatten))
+        attn = F.softmax(query_key, 1)
+
+        return torch.bmm(self.value(flatten), attn).view(*shape)
+
+    def forward(self, x):
+
+        return self.gamma * self.attention(x) + x
+
 class Generator(nn.Module):
-    def __init__(self, z_dim, num_classes):
+    def __init__(self, z_dim, num_classes, SA=False):
         super(Generator, self).__init__()
         self.z_dim = z_dim
+        self.SA = SA
 
-        self.dense = utils.spectral_norm(nn.Linear(self.z_dim, 4 * 4 * 1024))
-        self.final = utils.spectral_norm(nn.Conv2d(64, 3, 3, stride=1, padding=1))
+        self.dense = nn.Linear(self.z_dim, 4 * 4 * 1024)
+        self.final = nn.Conv2d(64, 3, 3, stride=1, padding=1)
         nn.init.xavier_uniform_(self.dense.weight.data, 1.)
         nn.init.xavier_uniform_(self.final.weight.data, 1.)
 
@@ -136,6 +159,9 @@ class Generator(nn.Module):
         self.block3 = Res_Block_up(512, 256, num_classes)
         self.block4 = Res_Block_up(256, 128, num_classes)
         self.block5 = Res_Block_up(128, 64, num_classes)
+
+        if SA:
+            self.SelfAttn = SelfAttention(256)
 
         self.model = nn.Sequential(
             nn.BatchNorm2d(64),
@@ -149,6 +175,8 @@ class Generator(nn.Module):
         h = self.block1(h, c)
         h = self.block2(h, c)
         h = self.block3(h, c)
+        if self.SA:
+            h = self.SelfAttn(h)
         h = self.block4(h, c)
         h = self.block5(h, c)
         return h
@@ -158,7 +186,7 @@ class Generator(nn.Module):
         return self.model(h)
 
 class Discriminator(nn.Module):
-    def __init__(self, num_classes):
+    def __init__(self, num_classes, SA=False):
         super(Discriminator, self).__init__()
 
         self.block1 = FirstBlock(3, 64)
@@ -168,20 +196,33 @@ class Discriminator(nn.Module):
         self.block5 = Res_Block_Down(512, 1024)
         self.block6 = Res_Block_Down(1024, 1024, down=False, dim_bal=False)
 
+        if SA:
+            self.SelfAttn = SelfAttention(128)
+            self.model = nn.Sequential(
+                self.block1,
+                self.block2,
+                self.SelfAttn,
+                self.block3,
+                self.block4,
+                self.block5,
+                self.block6,
+                nn.ReLU(True)
+            )
+        else:
+            self.model = nn.Sequential(
+                self.block1,
+                self.block2,
+                self.block3,
+                self.block4,
+                self.block5,
+                self.block6,
+                nn.ReLU(True)
+            )
+
         self.fc = utils.spectral_norm(nn.Linear(1024, 1))
         self.l_y = utils.spectral_norm(nn.Linear(1024, num_classes))
 
         self._initialize()
-
-        self.model = nn.Sequential(
-            self.block1,
-            self.block2,
-            self.block3,
-            self.block4,
-            self.block5,
-            self.block6,
-            nn.ReLU(True)
-        )
 
     def _initialize(self):
         init.xavier_uniform_(self.fc.weight.data)

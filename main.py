@@ -22,7 +22,7 @@ save_path = './mid_test/' + description
 model_path = './model/' + description
 
 restore = False
-restore_point = 20000
+restore_point = 380000
 Checkpoint = model_path + '/cVG iter ' + str(restore_point) + '/Train_' + str(restore_point) + '.pth'
 
 if not restore:
@@ -68,12 +68,11 @@ def main():
 
     if restore:
         print('Weight Restoring.....')
-        checkpoint = torch.load(Checkpoint)
-        generator.load_state_dict(checkpoint['gen'])
-        discriminator.load_state_dict(checkpoint['dis'])
-        optim_gen.load_state_dict(checkpoint['opt_gen'])
-        optim_disc.load_state_dict(checkpoint['opt_dis'])
-        del checkpoint
+        generator.load_state_dict(torch.load(Checkpoint)['gen'])
+        discriminator.load_state_dict(torch.load(Checkpoint)['dis'])
+        optim_gen.load_state_dict(torch.load(Checkpoint)['opt_gen'])
+        optim_disc.load_state_dict(torch.load(Checkpoint)['opt_dis'])
+        torch.cuda.empty_cache()
         print('Weight Restoring Finish!')
 
     print('Training start')
@@ -84,7 +83,6 @@ def main():
         if not is_training:
             break
         for step, (img_real, class_img) in enumerate(data_loader):
-
             D_loss = 0
 
             for gd in range(GD_ratio):
@@ -101,8 +99,10 @@ def main():
 
             img_gen = generator(torch.randn(batch_size, n_noise).cuda(), class_img[0::GD_ratio].cuda())
             dis_fake = discriminator(img_gen, class_img[0::GD_ratio].cuda())
+            dis_real = None
 
             G_loss = -torch.mean(dis_fake)
+            optim_disc.zero_grad()
             optim_gen.zero_grad()
             G_loss.backward()
             optim_gen.step()
