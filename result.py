@@ -13,12 +13,12 @@ Height = 128
 Width = 128
 n_noise = 128
 
-description = 'cConv+cBN'
+description = 'cConv'
 
 save_path = './results/' + description
 model_path = './model/' + description
 
-saving_iter = 20000
+saving_iter = 10000
 Max_iter = 1000000
 
 def gen_images(gen, n_noise, num_class, name_c, num_img=10000, batch=10, save_path='./mid_test/img', save_img=True):
@@ -91,12 +91,10 @@ def main():
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
         with open(save_path + '/log_FID.txt', 'a+') as f:
-            data = 'itr : %05d\t%.3f\n' % (
-            iter_count, fid_score)
+            data = 'itr : %05d\t%.3f\n' % (iter_count, fid_score)
             f.write(data)
         with open(save_path + '/log_IS.txt', 'a+') as f:
-            data = 'itr : %05d\t%.3f\t%.3f\n' % (
-            iter_count, is_score[0], is_score[1])
+            data = 'itr : %05d\t%.3f\t%.3f\n' % (iter_count, is_score[0], is_score[1])
             f.write(data)
 
         print('Evaluation Finish')

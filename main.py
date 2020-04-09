@@ -4,7 +4,6 @@ import torch.optim as optim
 import time
 import module as mm
 import os
-import numpy as np
 from datasets import CustomDataset
 from torch.utils.data import DataLoader
 from evaluation import evaluate
@@ -129,24 +128,26 @@ def main():
                     'opt_gen': optim_gen.state_dict(),
                     'opt_dis': optim_disc.state_dict(),
                 }, SaveName)
-                print('SAVING MODEL Finish')
 
                 save_images(generator, n_noise, num_class, name_c, save_path=save_path + '/img/')
 
-                # print('Evaluation start')
-                #
-                # fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
-                #                                num_img=50000, save_path=save_path + '/img/')
-                #
-                # with open(save_path + '/log_FID.txt', 'a+') as f:
-                #     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                #     iter_count, fid_score[0], fid_score[1], fid_score[2], np.average(fid_score), np.std(fid_score))
-                #     f.write(data)
-                # with open(save_path + '/log_IS.txt', 'a+') as f:
-                #     data = 'itr : %05d\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f\n' % (
-                #     iter_count, is_score[0], is_score[1], is_score[2], np.average(is_score), np.std(is_score))
-                #     f.write(data)
-                # print('Evaluation Finish')
+                print('SAVING MODEL Finish')
+
+            if iter_count % (saving_iter*10) == 0:
+
+                print('Evaluation start')
+
+                fid_score, is_score = evaluate(generator, n_noise, num_class, name_c, custom,
+                                               num_img=50000, save_img=False)
+
+                with open(save_path + '/log_FID.txt', 'a+') as f:
+                    data = 'itr : %05d\t%.3f\n' % (iter_count, fid_score)
+                    f.write(data)
+                with open(save_path + '/log_IS.txt', 'a+') as f:
+                    data = 'itr : %05d\t%.3f\t%.3f\n' % (iter_count, is_score[0], is_score[1])
+                    f.write(data)
+
+                print('Evaluation Finish')
 
             if iter_count == Max_iter:
                 is_training = False

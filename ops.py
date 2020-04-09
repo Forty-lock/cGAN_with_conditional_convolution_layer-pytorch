@@ -102,7 +102,7 @@ class cConv2d(_cConvNd):
         b_size, c_size, height, width = input.shape
 
         scale = self.scales(c).view(b_size, self.out_channels, 1, 1, 1)
-        shift = self.shifts(c).view(b_size, 1, self.in_channels, 1, 1) / self.kernel_size[0] / self.kernel_size[1]
+        shift = self.shifts(c).view(b_size, 1, self.in_channels, 1, 1) / self.out_channels
 
         weight = (weight * scale + shift)
 
